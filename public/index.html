@@ -35,6 +35,94 @@
         ::-webkit-scrollbar-thumb:hover {
             background: #94a3b8;
         }
+
+        /* Ferris CSS */
+        .ferris-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 50px;
+            height: auto;
+            z-index: 40;
+            cursor: pointer;
+            transition: transform 0.3s;
+        }
+
+        .ferris-container:hover {
+            transform: scale(1.1) rotate(5deg);
+        }
+
+        .ferris-img {
+            width: 100%;
+            height: auto;
+            display: block;
+            animation: float 3s infinite ease-in-out;
+            filter: drop-shadow(0 2px 5px rgba(247, 76, 0, 0.3));
+        }
+
+        /* Optional cute wiggle on click or hover state */
+        .ferris-container:active .ferris-img {
+            transform: scale(0.95);
+        }
+
+        .speech-bubble {
+            position: absolute;
+            bottom: 60px;
+            right: 0;
+            background: #fff;
+            border: 2px solid #F74C00;
+            border-radius: 10px;
+            padding: 8px;
+            width: 180px;
+            font-size: 12px;
+            color: #333;
+            box-shadow: 2px 2px 0 rgba(247, 76, 0, 0.2);
+            opacity: 0;
+            transform: translateY(10px);
+            transition: all 0.3s;
+            pointer-events: none;
+            line-height: 1.4;
+        }
+
+        .speech-bubble.active {
+            opacity: 1;
+            transform: translateY(0);
+            pointer-events: auto;
+        }
+
+        .speech-bubble::after,
+        .speech-bubble::before {
+            content: '';
+            position: absolute;
+            bottom: -10px;
+            right: 15px;
+            /* Aligned to center of 50px crab */
+            border-style: solid;
+        }
+
+        .speech-bubble::after {
+            border-width: 10px 10px 0;
+            border-color: #F74C00 transparent transparent transparent;
+        }
+
+        .speech-bubble::before {
+            bottom: -7px;
+            border-width: 8px 8px 0;
+            border-color: #fff transparent transparent transparent;
+            z-index: 1;
+        }
+
+        @keyframes float {
+
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+
+            50% {
+                transform: translateY(-8px);
+            }
+        }
     </style>
     <script>
         tailwind.config = {
@@ -61,7 +149,6 @@
                     <i class="ph ph-envelope-simple text-2xl"></i>
                 </div>
                 <h1 class="text-2xl font-bold text-gray-900">CF Mail Login</h1>
-                <p class="text-gray-500 mt-2">Enter your admin password to access mailboxes.</p>
             </div>
 
             <form @submit.prevent="login">
@@ -97,10 +184,6 @@
                 <h1 class="text-lg font-bold text-gray-800 tracking-tight">CF Post Office</h1>
             </div>
             <div class="flex items-center gap-4">
-                <button @click="logout"
-                    class="text-gray-500 hover:text-red-600 transition flex items-center gap-2 text-sm font-medium">
-                    <i class="ph ph-sign-out text-lg"></i> Logout
-                </button>
             </div>
         </header>
 
@@ -306,6 +389,33 @@
         </div>
     </div>
 
+    <!-- Footer -->
+    <!-- Social Buttons (Dynamic Position) -->
+    <div class="fixed transition-all duration-700 ease-[cubic-bezier(0.34,1.56,0.64,1)] z-50 flex gap-3 pointer-events-none"
+        :class="isLoggedIn ? 'top-4 right-6 transform translate-x-0' : 'bottom-4 left-1/2 transform -translate-x-1/2'">
+        <a href="https://github.com/lyon-le/cf-mail" target="_blank"
+            class="pointer-events-auto bg-white/80 hover:bg-white backdrop-blur shadow-sm border border-gray-200 text-gray-700 hover:text-black px-3 py-1.5 rounded-full text-xs font-medium flex items-center gap-2 transition">
+            <i class="ph ph-github-logo text-lg"></i> GitHub
+        </a>
+        <a href="https://linux.do/u/marre/summary" target="_blank"
+            class="pointer-events-auto bg-white/80 hover:bg-white backdrop-blur shadow-sm border border-gray-200 text-gray-700 hover:text-blue-600 px-3 py-1.5 rounded-full text-xs font-medium flex items-center gap-2 transition">
+            <i class="ph ph-linux-logo text-lg"></i> LinuxDO
+        </a>
+        <button @click="logout" x-show="isLoggedIn" x-transition:enter="transition ease-out duration-300 delay-300"
+            x-transition:enter-start="opacity-0 scale-90" x-transition:enter-end="opacity-100 scale-100"
+            class="pointer-events-auto bg-white/80 hover:bg-white backdrop-blur shadow-sm border border-gray-200 text-gray-700 hover:text-red-600 px-3 py-1.5 rounded-full text-xs font-medium flex items-center gap-2 transition">
+            <i class="ph ph-sign-out text-lg"></i> Logout
+        </button>
+    </div>
+
+    <!-- Interactive Ferris -->
+    <div x-data="catComponent()" class="ferris-container" @click="speak">
+        <div class="speech-bubble" :class="{ 'active': isSpeaking }">
+            <span x-html="currentMessage"></span>
+        </div>
+        <img src="/ferris.png" alt="Ferris" class="ferris-img">
+    </div>
+
     <!-- Create Mailbox Modal -->
     <div x-show="showCreateModal" x-cloak
         class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center backdrop-blur-sm">
@@ -319,9 +429,17 @@
                     <div class="flex">
                         <input type="text" x-model="newMailboxAddress" placeholder="e.g. support"
                             class="flex-1 px-3 py-2 border border-gray-300 rounded-l-lg focus:ring-1 focus:ring-blue-500 outline-none text-sm">
-                        <div
-                            class="bg-gray-100 border border-l-0 border-gray-300 px-3 py-2 text-sm text-gray-500 rounded-r-lg flex items-center">
-                            @...
+                        <div class="relative">
+                            <select x-model="selectedDomain"
+                                class="appearance-none bg-gray-100 border border-l-0 border-gray-300 px-3 py-2 pr-8 text-sm text-gray-500 rounded-r-lg h-full outline-none focus:ring-0 cursor-pointer">
+                                <template x-for="domain in availableDomains" :key="domain">
+                                    <option :value="domain" x-text="'@' + domain"></option>
+                                </template>
+                            </select>
+                            <div
+                                class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-500">
+                                <i class="ph ph-caret-down text-xs"></i>
+                            </div>
                         </div>
                     </div>
                     <p class="text-xs text-gray-500 mt-1">Leave empty to generate a random address.</p>
@@ -353,14 +471,33 @@
                 selectedMessage: null,
                 isLoadingMessages: false,
                 isLoadingContent: false,
+                isLoadingContent: false,
                 showCreateModal: false,
                 newMailboxAddress: '',
                 isCreating: false,
+                availableDomains: [],
+                selectedDomain: '',
 
                 async init() {
                     // Check auth status by trying to fetch mailboxes (or check cookie existence if we could, but HTTPOnly)
                     // We'll just try to fetch mailboxes, if 401 then not logged in.
+                    await this.fetchConfig();
                     await this.checkAuth();
+                },
+
+                async fetchConfig() {
+                    try {
+                        const res = await fetch('/api/config');
+                        if (res.ok) {
+                            const data = await res.json();
+                            this.availableDomains = data.domains || [];
+                            if (this.availableDomains.length > 0) {
+                                this.selectedDomain = this.availableDomains[0];
+                            }
+                        }
+                    } catch (e) {
+                        console.error("Failed to fetch config", e);
+                    }
                 },
 
                 async checkAuth() {
@@ -424,7 +561,7 @@
                 async createMailbox() {
                     this.isCreating = true;
                     try {
-                        const payload = this.newMailboxAddress ? { address: this.newMailboxAddress } : {};
+                        const payload = this.newMailboxAddress ? { address: this.newMailboxAddress, domain: this.selectedDomain } : { domain: this.selectedDomain };
                         const res = await fetch('/api/mailboxes', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
@@ -560,6 +697,58 @@
                     setTimeout(() => {
                         toast.remove();
                     }, 2000);
+                }
+            }
+        }
+
+        function catComponent() {
+            return {
+                isSpeaking: false,
+                currentMessage: '',
+                timeout: null,
+
+                speak() {
+                    // Clear existing timeout
+                    if (this.timeout) clearTimeout(this.timeout);
+
+                    // Scenarios
+                    const scenarios = [
+                        // 1. Stars
+                        () => `也许你可以突然给我一个 <a href="https://github.com/lyon-le/cf-mail" target="_blank" class="text-blue-500 underline font-bold">Stars</a> 呢`,
+                        // 2. No TS
+                        () => `你知道的, 我不会写TypeScript, 因为我是一只螃蟹？`,
+                        // 3. Password
+                        () => `你的密码太简单了，要改吗？`,
+                        () => `我本来想用Rust写的,但是CF这个傻福没给Rust做完方法`,
+                        // 4. Domain Joke
+                        () => {
+                            // Try to get a domain from the app component if possible, 
+                            // but we are in a different scope. We can direct access global but alpine scope is cleaner.
+                            // Let's rely on a global way or just mock if empty, 
+                            // but actually we can access the 'availableDomains' from the x-data="app()" if we dispatch event or similar.
+                            // Simpler: Just random if no access, or try to read typical list.
+                            // But better: Let's assume we can peak at text content or just random common ones if 'availableDomains' isn't easily reachable without event bus.
+                            // ACTUALLY: DOM access is easy.
+                            const select = document.querySelector('select'); // The domain select
+                            let domain = 'This';
+                            if (select && select.options.length > 0) {
+                                const randomIndex = Math.floor(Math.random() * select.options.length);
+                                domain = select.options[randomIndex].value;
+                            } else {
+                                domain = 'cf-mail.com';
+                            }
+                            return `${domain} 这个域名在我这里可以买一顿疯狂星期四了`;
+                        }
+                    ];
+
+                    // Pick random
+                    const randomScenario = scenarios[Math.floor(Math.random() * scenarios.length)];
+                    this.currentMessage = randomScenario();
+
+                    this.isSpeaking = true;
+                    this.timeout = setTimeout(() => {
+                        this.isSpeaking = false;
+                    }, 4000);
                 }
             }
         }

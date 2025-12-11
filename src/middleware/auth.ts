@@ -2,7 +2,7 @@ import { Context, Next } from 'hono'
 import { getCookie } from 'hono/cookie'
 import { jwt } from '../utils/jwt'
 
-const PUBLIC_PATHS = ['/api/login', '/api/health']
+const PUBLIC_PATHS = ['/api/login', '/api/health', '/api/config']
 
 export async function authMiddleware(c: Context, next: Next) {
   const path = new URL(c.req.url).pathname

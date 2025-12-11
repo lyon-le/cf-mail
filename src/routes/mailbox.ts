@@ -17,6 +17,12 @@ function generateRandomAddress(): string {
   return result
 }
 
+// GET /api/config - 获取配置信息
+mailbox.get('/config', (c) => {
+  const domains = (c.env.MAIL_DOMAIN || '').split(',').map((d) => d.trim()).filter(Boolean)
+  return c.json({ domains })
+})
+
 // GET /api/mailboxes - 列表
 mailbox.get('/mailboxes', async (c) => {
   const result = await c.env.DB.prepare(
@@ -28,8 +34,20 @@ mailbox.get('/mailboxes', async (c) => {
 
 // POST /api/mailboxes - 创建
 mailbox.post('/mailboxes', async (c) => {
-  const body = await c.req.json<{ address?: string }>()
-  const domain = c.env.MAIL_DOMAIN
+  const body = await c.req.json<{ address?: string; domain?: string }>()
+  // 从环境变量获取允许的域名列表
+  const allowedDomains = (c.env.MAIL_DOMAIN || '').split(',').map((d) => d.trim()).filter(Boolean)
+  // 如果没有配置域名，回退到默认行为（取第一个，或者报错，这里暂时取第一个作为默认）
+  const defaultDomain = allowedDomains[0] || 'localhost'
+
+  // 确定使用的域名
+  let domain = defaultDomain
+  if (body.domain) {
+    if (!allowedDomains.includes(body.domain)) {
+      return c.json({ error: 'Invalid domain' }, 400)
+    }
+    domain = body.domain
+  }
 
   let localPart: string
   if (body.address) {
