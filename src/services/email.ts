@@ -159,13 +159,13 @@ export async function handleEmail(
   console.log(`Email saved: ${parsed.subject} (code: ${verificationCode || 'none'})`)
 
   // TG 推送通知 - 从数据库读取配置
-  const tgConfig = await env.DB.prepare("SELECT key, value FROM settings WHERE key IN ('tg_bot_token', 'tg_chat_id')").all()
+  const tgConfig = await env.DB.prepare("SELECT key, value FROM settings WHERE key IN ('tg_bot_token', 'tg_chat_id', 'tg_topic_id')").all()
   const tgSettings: Record<string, string> = {}
   for (const row of tgConfig.results as { key: string; value: string }[]) {
     tgSettings[row.key] = row.value
   }
   if (tgSettings.tg_bot_token && tgSettings.tg_chat_id) {
-    await sendTelegramNotification(tgSettings.tg_bot_token, tgSettings.tg_chat_id, {
+    await sendTelegramNotification(tgSettings.tg_bot_token, tgSettings.tg_chat_id, tgSettings.tg_topic_id, {
       from: parsed.from,
       to: toAddress,
       subject: parsed.subject,
@@ -179,6 +179,7 @@ export async function handleEmail(
 async function sendTelegramNotification(
   botToken: string,
   chatId: string,
+  topicId: string | undefined,
   email: {
     from: string
     to: string
@@ -197,13 +198,13 @@ async function sendTelegramNotification(
 
 ${email.preview}`
 
+    const body: { chat_id: string; text: string; message_thread_id?: number } = { chat_id: chatId, text }
+    if (topicId) body.message_thread_id = parseInt(topicId)
+
     const res = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text,
-      }),
+      body: JSON.stringify(body),
     })
 
     if (!res.ok) {

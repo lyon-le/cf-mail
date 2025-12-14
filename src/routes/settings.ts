@@ -20,7 +20,7 @@ settings.get('/settings', async (c) => {
 settings.put('/settings', async (c) => {
   const body = await c.req.json<Record<string, string>>()
 
-  const allowedKeys = ['auto_create_enabled', 'auto_create_min_length', 'auto_create_max_length', 'auto_create_start_type', 'tg_bot_token', 'tg_chat_id']
+  const allowedKeys = ['auto_create_enabled', 'auto_create_min_length', 'auto_create_max_length', 'auto_create_start_type', 'tg_bot_token', 'tg_chat_id', 'tg_topic_id']
 
   for (const [key, value] of Object.entries(body)) {
     if (!allowedKeys.includes(key)) continue

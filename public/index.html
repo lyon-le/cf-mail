@@ -510,16 +510,29 @@
 
                 <!-- Telegram Settings -->
                 <div class="pt-4 border-t border-gray-200">
-                    <h4 class="text-sm font-semibold text-gray-800 mb-3">Telegram Notification</h4>
-                    <div class="space-y-3">
+                    <div class="flex items-center justify-between mb-3">
+                        <h4 class="text-sm font-semibold text-gray-800">Telegram Notification</h4>
+                        <button @click="tgEnabled = !tgEnabled"
+                            class="relative w-12 h-6 rounded-full transition"
+                            :class="tgEnabled ? 'bg-blue-600' : 'bg-gray-300'">
+                            <span class="absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform"
+                                :class="tgEnabled ? 'translate-x-6' : ''"></span>
+                        </button>
+                    </div>
+                    <div x-show="tgEnabled" class="space-y-3">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Bot Token</label>
-                            <input type="password" x-model="settings.tg_bot_token" placeholder="123456:ABC-DEF..."
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Bot Token <span class="text-red-500">*</span></label>
+                            <input type="password" x-model="settings.tg_bot_token" placeholder="123456:ABC-DEF..." required
                                 class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-1 focus:ring-blue-500">
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Chat ID</label>
-                            <input type="text" x-model="settings.tg_chat_id" placeholder="-1001234567890"
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Chat ID <span class="text-red-500">*</span></label>
+                            <input type="text" x-model="settings.tg_chat_id" placeholder="-1001234567890" required
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-1 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Topic ID <span class="text-gray-400 text-xs">(可选)</span></label>
+                            <input type="text" x-model="settings.tg_topic_id" placeholder="123"
                                 class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-1 focus:ring-blue-500">
                         </div>
                     </div>
@@ -569,8 +582,10 @@
                     auto_create_max_length: '20',
                     auto_create_start_type: 'both',
                     tg_bot_token: '',
-                    tg_chat_id: ''
+                    tg_chat_id: '',
+                    tg_topic_id: ''
                 },
+                tgEnabled: false,
 
                 async init() {
                     // Check auth status by trying to fetch mailboxes (or check cookie existence if we could, but HTTPOnly)
@@ -799,6 +814,7 @@
                         if (res.ok) {
                             const data = await res.json();
                             this.settings = { ...this.settings, ...data.settings };
+                            this.tgEnabled = !!(this.settings.tg_bot_token && this.settings.tg_chat_id);
                         }
                     } catch (e) {
                         console.error('Failed to fetch settings', e);
@@ -807,10 +823,16 @@
 
                 async saveSettings() {
                     try {
+                        const data = { ...this.settings };
+                        if (!this.tgEnabled) {
+                            data.tg_bot_token = '';
+                            data.tg_chat_id = '';
+                            data.tg_topic_id = '';
+                        }
                         const res = await fetch('/api/settings', {
                             method: 'PUT',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(this.settings)
+                            body: JSON.stringify(data)
                         });
                         if (res.ok) {
                             this.showToast('Settings saved');
