@@ -211,6 +211,7 @@
                                 <i class="ph text-lg"
                                     :class="selectedMailbox?.id === box.id ? 'ph-envelope-open text-blue-500' : 'ph-envelope text-gray-400'"></i>
                                 <span class="truncate font-medium" x-text="box.address"></span>
+                                <span x-show="box.is_auto_created" class="text-xs bg-orange-100 text-orange-600 px-1 rounded">Auto</span>
                             </div>
 
                             <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
@@ -401,6 +402,11 @@
             class="pointer-events-auto bg-white/80 hover:bg-white backdrop-blur shadow-sm border border-gray-200 text-gray-700 hover:text-blue-600 px-3 py-1.5 rounded-full text-xs font-medium flex items-center gap-2 transition">
             <i class="ph ph-linux-logo text-lg"></i> LinuxDO
         </a>
+        <button @click="fetchSettings(); showSettingsModal = true" x-show="isLoggedIn" x-transition:enter="transition ease-out duration-300 delay-300"
+            x-transition:enter-start="opacity-0 scale-90" x-transition:enter-end="opacity-100 scale-100"
+            class="pointer-events-auto bg-white/80 hover:bg-white backdrop-blur shadow-sm border border-gray-200 text-gray-700 hover:text-blue-600 px-3 py-1.5 rounded-full text-xs font-medium flex items-center gap-2 transition">
+            <i class="ph ph-gear text-lg"></i> Settings
+        </button>
         <button @click="logout" x-show="isLoggedIn" x-transition:enter="transition ease-out duration-300 delay-300"
             x-transition:enter-start="opacity-0 scale-90" x-transition:enter-end="opacity-100 scale-100"
             class="pointer-events-auto bg-white/80 hover:bg-white backdrop-blur shadow-sm border border-gray-200 text-gray-700 hover:text-red-600 px-3 py-1.5 rounded-full text-xs font-medium flex items-center gap-2 transition">
@@ -458,6 +464,68 @@
         </div>
     </div>
 
+    <!-- Settings Modal -->
+    <div x-show="showSettingsModal" x-cloak
+        class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center backdrop-blur-sm">
+        <div @click.outside="showSettingsModal = false"
+            class="bg-white rounded-xl shadow-2xl w-full max-w-md p-6 transform transition-all">
+            <h3 class="text-lg font-bold text-gray-900 mb-4">Settings</h3>
+
+            <div class="space-y-4">
+                <!-- Auto Create Toggle -->
+                <div class="flex items-center justify-between">
+                    <label class="text-sm font-medium text-gray-700">Auto Create Mailbox</label>
+                    <button @click="settings.auto_create_enabled = settings.auto_create_enabled === 'true' ? 'false' : 'true'"
+                        class="relative w-12 h-6 rounded-full transition"
+                        :class="settings.auto_create_enabled === 'true' ? 'bg-blue-600' : 'bg-gray-300'">
+                        <span class="absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform"
+                            :class="settings.auto_create_enabled === 'true' ? 'translate-x-6' : ''"></span>
+                    </button>
+                </div>
+
+                <!-- Min Length -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Min Length</label>
+                    <input type="number" x-model="settings.auto_create_min_length" min="1" max="50"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-1 focus:ring-blue-500">
+                </div>
+
+                <!-- Max Length -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Max Length</label>
+                    <input type="number" x-model="settings.auto_create_max_length" min="1" max="50"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-1 focus:ring-blue-500">
+                </div>
+
+                <!-- Start Type -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Allowed Start Character</label>
+                    <select x-model="settings.auto_create_start_type"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-1 focus:ring-blue-500">
+                        <option value="both">Letter or Digit</option>
+                        <option value="letter">Letter Only</option>
+                        <option value="digit">Digit Only</option>
+                    </select>
+                </div>
+
+                <!-- Delete Auto Created -->
+                <div class="pt-2 border-t border-gray-200">
+                    <button @click="deleteAutoCreatedMailboxes"
+                        class="text-red-500 hover:text-red-700 text-sm font-medium flex items-center gap-2">
+                        <i class="ph ph-trash"></i> Delete All Auto-Created Mailboxes
+                    </button>
+                </div>
+
+                <div class="flex gap-3 mt-6">
+                    <button @click="showSettingsModal = false"
+                        class="flex-1 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition">Cancel</button>
+                    <button @click="saveSettings"
+                        class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         function app() {
             return {
@@ -477,6 +545,13 @@
                 isCreating: false,
                 availableDomains: [],
                 selectedDomain: '',
+                showSettingsModal: false,
+                settings: {
+                    auto_create_enabled: 'false',
+                    auto_create_min_length: '6',
+                    auto_create_max_length: '20',
+                    auto_create_start_type: 'both'
+                },
 
                 async init() {
                     // Check auth status by trying to fetch mailboxes (or check cookie existence if we could, but HTTPOnly)
@@ -697,6 +772,47 @@
                     setTimeout(() => {
                         toast.remove();
                     }, 2000);
+                },
+
+                async fetchSettings() {
+                    try {
+                        const res = await fetch('/api/settings');
+                        if (res.ok) {
+                            const data = await res.json();
+                            this.settings = { ...this.settings, ...data.settings };
+                        }
+                    } catch (e) {
+                        console.error('Failed to fetch settings', e);
+                    }
+                },
+
+                async saveSettings() {
+                    try {
+                        const res = await fetch('/api/settings', {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(this.settings)
+                        });
+                        if (res.ok) {
+                            this.showToast('Settings saved');
+                            this.showSettingsModal = false;
+                        }
+                    } catch (e) {
+                        alert('Failed to save settings');
+                    }
+                },
+
+                async deleteAutoCreatedMailboxes() {
+                    if (!confirm('Delete all auto-created mailboxes?')) return;
+                    const res = await fetch('/api/mailboxes-auto-created', { method: 'DELETE' });
+                    if (res.ok) {
+                        const data = await res.json();
+                        this.showToast(`Deleted ${data.deleted} mailboxes`);
+                        await this.fetchMailboxes();
+                        this.selectedMailbox = null;
+                        this.messages = [];
+                        this.selectedMessage = null;
+                    }
                 }
             }
         }

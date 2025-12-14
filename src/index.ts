@@ -3,6 +3,7 @@ import { authMiddleware } from './middleware/auth'
 import { auth } from './routes/auth'
 import { mailbox } from './routes/mailbox'
 import { message } from './routes/message'
+import { settings } from './routes/settings'
 import { handleEmail } from './services/email'
 import { initDatabase } from './db/init'
 
@@ -32,6 +33,7 @@ app.get('/api/health', (c) => c.json({ status: 'ok' }))
 app.route('/api', auth)
 app.route('/api', mailbox)
 app.route('/api', message)
+app.route('/api', settings)
 
 export default {
   fetch: app.fetch,

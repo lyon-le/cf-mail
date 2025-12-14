@@ -49,6 +49,47 @@ function getExtension(filename: string, contentType: string): string {
   return mimeMap[contentType] || 'bin'
 }
 
+// 尝试自动创建邮箱
+async function tryAutoCreateMailbox(db: D1Database, address: string): Promise<{ id: number } | null> {
+  // 读取配置
+  const settings = await db.prepare('SELECT key, value FROM settings WHERE key LIKE ?').bind('auto_create_%').all()
+  const config: Record<string, string> = {}
+  for (const row of settings.results as { key: string; value: string }[]) {
+    config[row.key] = row.value
+  }
+
+  if (config.auto_create_enabled !== 'true') return null
+
+  const [localPart, domain] = address.split('@')
+  if (!localPart || !domain) return null
+
+  const minLen = parseInt(config.auto_create_min_length || '6')
+  const maxLen = parseInt(config.auto_create_max_length || '20')
+  const startType = config.auto_create_start_type || 'both'
+
+  // 校验长度
+  if (localPart.length < minLen || localPart.length > maxLen) return null
+
+  // 校验开头字符
+  const firstChar = localPart[0]
+  const isLetter = /^[a-z]$/i.test(firstChar)
+  const isDigit = /^[0-9]$/.test(firstChar)
+  if (startType === 'letter' && !isLetter) return null
+  if (startType === 'digit' && !isDigit) return null
+  if (startType === 'both' && !isLetter && !isDigit) return null
+
+  // 创建邮箱
+  try {
+    const result = await db.prepare(
+      'INSERT INTO mailboxes (address, local_part, domain, is_auto_created) VALUES (?, ?, ?, 1) RETURNING id'
+    ).bind(address, localPart, domain).first<{ id: number }>()
+    console.log(`Auto-created mailbox: ${address}`)
+    return result
+  } catch {
+    return null
+  }
+}
+
 // 生成预览文本
 function generatePreview(text: string, html: string): string {
   let content = text || html
@@ -65,14 +106,18 @@ export async function handleEmail(
   const toAddress = message.to.toLowerCase()
 
   // 检查收件邮箱是否存在
-  const mailboxRow = await env.DB.prepare('SELECT id FROM mailboxes WHERE address = ?')
+  let mailboxRow = await env.DB.prepare('SELECT id FROM mailboxes WHERE address = ?')
     .bind(toAddress)
     .first<{ id: number }>()
 
   if (!mailboxRow) {
-    console.log(`Mailbox not found: ${toAddress}, rejecting`)
-    message.setReject('Mailbox not found')
-    return
+    // 尝试自动创建邮箱
+    mailboxRow = await tryAutoCreateMailbox(env.DB, toAddress)
+    if (!mailboxRow) {
+      console.log(`Mailbox not found: ${toAddress}, rejecting`)
+      message.setReject('Mailbox not found')
+      return
+    }
   }
 
   // 读取原始邮件内容

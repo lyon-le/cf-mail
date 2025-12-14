@@ -26,7 +26,7 @@ mailbox.get('/config', (c) => {
 // GET /api/mailboxes - 列表
 mailbox.get('/mailboxes', async (c) => {
   const result = await c.env.DB.prepare(
-    'SELECT id, address, local_part, domain, created_at FROM mailboxes ORDER BY created_at DESC'
+    'SELECT id, address, local_part, domain, is_auto_created, created_at FROM mailboxes ORDER BY created_at DESC'
   ).all()
 
   return c.json({ mailboxes: result.results })
@@ -96,6 +96,12 @@ mailbox.delete('/mailboxes/:id', async (c) => {
   // TODO: 清理 R2 中的邮件和附件文件
 
   return c.json({ success: true })
+})
+
+// DELETE /api/mailboxes/auto-created - 批量删除自动创建的邮箱
+mailbox.delete('/mailboxes-auto-created', async (c) => {
+  const result = await c.env.DB.prepare('DELETE FROM mailboxes WHERE is_auto_created = 1').run()
+  return c.json({ success: true, deleted: result.meta.changes })
 })
 
 export { mailbox }
