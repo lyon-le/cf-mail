@@ -11,5 +11,10 @@ database_id = ""
 binding = "R2"
 bucket_name = "cf-mail-storage"
 
+[vars]
+ADMIN_PASSWORD = "Changeyourpasswordbeforeusingcfmail"
+JWT_SECRET = "changeyourjwttokenbeforeusingcfmail"
+MAIL_DOMAIN = "example.com,example2.com"
+
 [assets]
 directory = "public"

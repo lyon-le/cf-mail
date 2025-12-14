@@ -62,15 +62,17 @@ Just Simple One CF-Mail.
 
 ## 大白话就是什么都不用管！
 
-**4. 配置环境变量**
+**4. 修改环境变量**
 
-在 **Settings** → **Variables and Secrets** 中添加：
+> ⚠️ **重要：部署后请立即修改默认值！**
 
-| 变量名 | 说明 | 必填 |
-|--------|------|------|
-| `ADMIN_PASSWORD` | 登录密码 | ✅ |
-| `JWT_SECRET` | JWT 签名密钥（随机字符串） | ✅ |
-| `MAIL_DOMAIN` | 邮箱域名（如 `example.com`） | ✅ |
+部署后会自动配置默认环境变量，请在 **Settings** → **Variables and Secrets** 中修改：
+
+| 变量名 | 默认值 | 说明 |
+|--------|--------|------|
+| `ADMIN_PASSWORD` | `Changeyourpasswordbeforeusingcfmail` | 登录密码，**必须修改** |
+| `JWT_SECRET` | `changeyourjwttokenbeforeusingcfmail` | JWT 密钥，**必须修改** |
+| `MAIL_DOMAIN` | `example.com,example2.com` | 改成你的域名 |
 
 ![alt text](<asset/image copy.png>)
 
